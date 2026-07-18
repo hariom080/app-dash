@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6c5ce7">
+<title>ezz — App Manager</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%236c5ce7'/%3E%3Cstop offset='1' stop-color='%2300cec9'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpath d='M36 12 L20 36 h10 L26 52 L44 28 h-10 Z' fill='white'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0f1220; --panel:#181c30; --panel2:#1f2440; --text:#eef0ff; --muted:#8b90b5;
+  --accent:#6c5ce7; --accent2:#00cec9; --green:#00e08a; --red:#ff6b81; --yellow:#ffd166;
+  --border:#2a2f52; --shadow:0 8px 30px rgba(0,0,0,.35); --radius:16px;
+}
+[data-theme="light"]{
+  --bg:#f2f4fb; --panel:#ffffff; --panel2:#eef0f9; --text:#1b1e33; --muted:#6a6f94;
+  --border:#dfe3f2; --shadow:0 8px 24px rgba(60,70,140,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);overflow-x:hidden;transition:background .3s,color .3s}
+button{font-family:inherit}
+
+/* ---------- SPLASH ---------- */
+#splash{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:linear-gradient(145deg,#6c5ce7 0%,#4834d4 45%,#00cec9 120%);transition:opacity .6s,visibility .6s}
+#splash.hide{opacity:0;visibility:hidden}
+#splash .logo{width:110px;height:110px;animation:pop .9s cubic-bezier(.2,1.4,.4,1) both, floaty 2.4s 1s ease-in-out infinite}
+#splash h1{color:#fff;font-size:44px;letter-spacing:2px;margin-top:18px;font-weight:800;animation:fadeUp .8s .3s both}
+#splash p{color:rgba(255,255,255,.85);margin-top:6px;font-size:14px;letter-spacing:3px;text-transform:uppercase;animation:fadeUp .8s .5s both}
+#splash .bar{width:140px;height:4px;background:rgba(255,255,255,.25);border-radius:4px;margin-top:26px;overflow:hidden;animation:fadeUp .8s .6s both}
+#splash .bar i{display:block;height:100%;width:40%;background:#fff;border-radius:4px;animation:slide 1.1s ease-in-out infinite}
+@keyframes slide{0%{transform:translateX(-120%)}100%{transform:translateX(360%)}}
+@keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes fadeUp{0%{transform:translateY(14px);opacity:0}100%{transform:translateY(0);opacity:1}}
+/* anime banner */
+@keyframes ezzIn{0%{transform:translate(-50%,-140%) scale(.8);opacity:0}60%{transform:translate(-50%,10px) scale(1.04)}100%{transform:translate(-50%,0) scale(1)}}
+@keyframes ezzTw{0%,100%{opacity:.15;transform:scale(.6) rotate(0)}50%{opacity:1;transform:scale(1.25) rotate(20deg)}}
+
+/* ---------- LAYOUT ---------- */
+#app{display:none;min-height:100vh}
+#app.ready{display:flex}
+.sidebar{width:230px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+  padding:22px 14px;display:flex;flex-direction:column;gap:6px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px 18px}
+.brand svg{width:38px;height:38px}
+.brand b{font-size:22px;letter-spacing:1px}
+.nav-btn{display:flex;align-items:center;gap:12px;padding:11px 14px;border:none;background:transparent;color:var(--muted);
+  border-radius:12px;cursor:pointer;font-size:14.5px;width:100%;text-align:left;transition:.2s}
+.nav-btn:hover{background:var(--panel2);color:var(--text)}
+.nav-btn.active{background:linear-gradient(90deg,var(--accent),#8f7bff);color:#fff;box-shadow:0 4px 14px rgba(108,92,231,.4)}
+.nav-btn .ico{width:20px;text-align:center}
+.sidebar .spacer{flex:1}
+.main{flex:1;padding:26px 30px 90px;max-width:1200px;margin:0 auto;width:100%}
+.topbar{display:flex;align-items:center;gap:14px;margin-bottom:24px;flex-wrap:wrap}
+.topbar h2{font-size:24px;flex:1;min-width:120px}
+.search{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 14px;color:var(--text);
+  width:220px;font-size:14px;outline:none}
+.search:focus{border-color:var(--accent)}
+.btn{background:linear-gradient(90deg,var(--accent),#8f7bff);color:#fff;border:none;padding:11px 20px;border-radius:12px;
+  cursor:pointer;font-size:14px;font-weight:600;transition:.2s;box-shadow:0 4px 14px rgba(108,92,231,.35)}
+.btn:hover{transform:translateY(-1px)}
+.btn.ghost{background:var(--panel);color:var(--text);border:1px solid var(--border);box-shadow:none}
+.btn.danger{background:linear-gradient(90deg,#ff6b81,#ff8f9f);box-shadow:0 4px 14px rgba(255,107,129,.3)}
+.btn.small{padding:7px 14px;font-size:12.5px;border-radius:10px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* ---------- CARDS / GRIDS ---------- */
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;margin-bottom:22px}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);
+  position:relative;overflow:hidden}
+.stat::after{content:"";position:absolute;right:-20px;top:-20px;width:80px;height:80px;border-radius:50%;
+  background:radial-gradient(circle,rgba(108,92,231,.18),transparent 70%)}
+.stat .label{color:var(--muted);font-size:12.5px;text-transform:uppercase;letter-spacing:.8px}
+.stat .val{font-size:28px;font-weight:800;margin-top:8px}
+.stat .delta{font-size:12px;margin-top:6px;color:var(--green)}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);margin-bottom:20px}
+.panel h3{font-size:16px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.row2{display:grid;grid-template-columns:1.6fr 1fr;gap:20px}
+@media(max-width:900px){.row2{grid-template-columns:1fr}}
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.app-card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:18px;cursor:pointer;
+  transition:.2s;box-shadow:var(--shadow)}
+.app-card:hover{transform:translateY(-3px);border-color:var(--accent)}
+.app-card .top{display:flex;gap:13px;align-items:center;margin-bottom:14px}
+.app-icon{width:52px;height:52px;border-radius:14px;object-fit:cover;background:var(--panel2);flex-shrink:0}
+.app-icon.big{width:72px;height:72px;border-radius:18px}
+.app-card .name{font-weight:700;font-size:16px}
+.badge{display:inline-block;font-size:10.5px;padding:3px 9px;border-radius:20px;font-weight:700;letter-spacing:.4px;margin-top:4px}
+.badge.gas{background:rgba(66,133,244,.15);color:#5b9bff}
+.badge.supabase{background:rgba(62,207,142,.15);color:#3ecf8e}
+.badge.web{background:rgba(0,206,201,.15);color:#00cec9}
+.badge.other{background:rgba(139,144,181,.15);color:var(--muted)}
+.badge.live{background:rgba(0,224,138,.15);color:var(--green)}
+.badge.paused{background:rgba(255,209,102,.15);color:var(--yellow)}
+.app-card .mini-stats{display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:12px;margin-top:4px}
+.app-card .ms{text-align:center}
+.app-card .ms b{display:block;font-size:15px}
+.app-card .ms span{font-size:11px;color:var(--muted)}
+.empty{text-align:center;color:var(--muted);padding:50px 20px}
+.empty .big-emoji{font-size:46px;display:block;margin-bottom:12px}
+
+/* ---------- ACTIVITY ---------- */
+.activity li{list-style:none;display:flex;gap:12px;padding:11px 0;border-bottom:1px dashed var(--border);font-size:13.5px;align-items:flex-start}
+.activity li:last-child{border-bottom:none}
+.activity .dot{width:9px;height:9px;border-radius:50%;background:var(--accent2);margin-top:5px;flex-shrink:0}
+.activity time{color:var(--muted);font-size:11.5px;display:block;margin-top:2px}
+
+/* ---------- MODAL ---------- */
+.modal-bg{position:fixed;inset:0;background:rgba(5,8,20,.7);backdrop-filter:blur(4px);z-index:200;display:none;
+  align-items:center;justify-content:center;padding:16px}
+.modal-bg.open{display:flex}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:20px;width:100%;max-width:560px;
+  max-height:92vh;overflow-y:auto;padding:26px;animation:pop .35s cubic-bezier(.2,1.3,.4,1) both}
+.modal h3{font-size:19px;margin-bottom:18px}
+.field{margin-bottom:15px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.3px}
+.field input,.field select,.field textarea{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);
+  padding:11px 13px;border-radius:11px;font-size:14px;outline:none;transition:.2s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{min-height:110px;font-family:ui-monospace,Consolas,monospace;font-size:12.5px;resize:vertical}
+.modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.tab{background:none;border:none;color:var(--muted);padding:9px 14px;cursor:pointer;font-size:13.5px;font-weight:600;
+  border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--accent2);border-bottom-color:var(--accent2)}
+.icon-pick{display:flex;align-items:center;gap:14px}
+.color-row{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{width:34px;height:34px;border-radius:10px;cursor:pointer;border:2px solid transparent;transition:.15s}
+.swatch.sel{border-color:#fff;transform:scale(1.12)}
+.splash-preview{width:120px;height:210px;border-radius:18px;border:2px solid var(--border);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:10px;margin-top:10px}
+.splash-preview img{width:44px;height:44px;border-radius:12px}
+.splash-preview span{color:#fff;font-size:13px;font-weight:700;text-shadow:0 1px 4px rgba(0,0,0,.4)}
+.kv{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px dashed var(--border);font-size:13.5px}
+.kv:last-child{border:none}
+.kv span:first-child{color:var(--muted)}
+.progress{height:8px;background:var(--panel2);border-radius:8px;overflow:hidden;margin-top:8px}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:8px;transition:width .3s;width:0}
+
+/* ---------- ANIME NOTIFY PREVIEW ---------- */
+.notif-prev{position:relative;display:flex;gap:13px;align-items:center;border-radius:20px;padding:13px 22px 13px 13px;
+  background:linear-gradient(135deg,#241d4e,#141031 55%,#1b1442);color:#fff;margin-top:8px;overflow:hidden}
+.notif-prev .np-ico{width:46px;height:46px;border-radius:15px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.notif-prev b{display:block;font-size:14.5px}
+.notif-prev .np-msg{font-size:12.5px;opacity:.8;margin-top:2px}
+.notif-prev .np-tag{font-size:10px;letter-spacing:1px;margin-top:4px}
+.notif-prev .tw{position:absolute;animation:ezzTw 1.8s infinite}
+
+/* ---------- CODE / TOAST ---------- */
+.codewrap{position:relative}
+.codewrap .copy{position:absolute;top:8px;right:8px}
+pre.code{background:#0b0e1c;color:#c8d0ff;border:1px solid var(--border);border-radius:12px;padding:14px;font-size:11.5px;
+  overflow-x:auto;font-family:ui-monospace,Consolas,monospace;line-height:1.55;white-space:pre;margin-top:8px}
+[data-theme="light"] pre.code{background:#1b1e33}
+#toasts{position:fixed;bottom:20px;right:20px;z-index:500;display:flex;flex-direction:column;gap:10px}
+.toast{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--accent2);padding:13px 18px;
+  border-radius:12px;box-shadow:var(--shadow);font-size:13.5px;animation:fadeUp .3s both;max-width:320px}
+.toast.err{border-left-color:var(--red)}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+table.tbl th{text-align:left;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;padding:8px 10px;border-bottom:1px solid var(--border)}
+table.tbl td{padding:10px;border-bottom:1px dashed var(--border)}
+canvas.chart{width:100%;height:200px}
+
+/* ---------- SMOOTHNESS ---------- */
+.main>*{animation:fadeUp .35s ease both}
+.main>*:nth-child(2){animation-delay:.05s}
+.main>*:nth-child(3){animation-delay:.1s}
+.main>*:nth-child(4){animation-delay:.15s}
+::-webkit-scrollbar{width:9px;height:9px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:8px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+.btn:active{transform:translateY(1px) scale(.98)}
+.app-card:active{transform:translateY(-1px) scale(.99)}
+.field input:focus,.field select:focus,.field textarea:focus{box-shadow:0 0 0 3px rgba(108,92,231,.18)}
+.search:focus{box-shadow:0 0 0 3px rgba(108,92,231,.18)}
+.pushchip{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:20px;font-weight:700}
+.pushchip.ok{background:rgba(0,224,138,.13);color:var(--green)}
+.pushchip.warn{background:rgba(255,209,102,.13);color:var(--yellow)}
+
+/* ---------- MOBILE ---------- */
+.mobilenav{display:none}
+@media(max-width:760px){
+  .sidebar{display:none}
+  .main{padding:18px 16px 90px}
+  .mobilenav{display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--panel);border-top:1px solid var(--border);
+    z-index:100;padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
+  .mobilenav button{flex:1;background:none;border:none;color:var(--muted);font-size:10.5px;padding:7px 2px;cursor:pointer;border-radius:10px}
+  .mobilenav button .ico{display:block;font-size:19px;margin-bottom:3px}
+  .mobilenav button.active{color:var(--accent2)}
+  .search{width:100%}
+}
+</style>
+</head>
+<body>
+
+<!-- SPLASH SCREEN -->
+<div id="splash">
+  <svg class="logo" viewBox="0 0 64 64"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d8f7ff"/></linearGradient></defs>
+    <rect width="64" height="64" rx="16" fill="rgba(255,255,255,.18)"/>
+    <rect x="4" y="4" width="56" height="56" rx="13" fill="rgba(255,255,255,.14)"/>
+    <path d="M36 10 L18 36 h11 L25 54 L46 27 h-11 Z" fill="url(#lg)"/>
+  </svg>
+  <h1>ezz</h1>
+  <p>manage apps, ezz-ily</p>
+  <div class="bar"><i></i></div>
+</div>
+
+<div id="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="0 0 64 64"><defs><linearGradient id="bg1" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#6c5ce7"/><stop offset="1" stop-color="#00cec9"/></linearGradient></defs>
+        <rect width="64" height="64" rx="16" fill="url(#bg1)"/>
+        <path d="M36 12 L20 36 h10 L26 52 L44 28 h-10 Z" fill="white"/></svg>
+      <b>ezz</b>
+    </div>
+    <button class="nav-btn active" data-page="dashboard"><span class="ico">📊</span>Dashboard</button>
+    <button class="nav-btn" data-page="apps"><span class="ico">📱</span>My Apps</button>
+    <button class="nav-btn" data-page="analytics"><span class="ico">📈</span>Analytics</button>
+    <button class="nav-btn" data-page="notify"><span class="ico">📣</span>Notify</button>
+    <button class="nav-btn" data-page="integrations"><span class="ico">🔌</span>Connect</button>
+    <button class="nav-btn" data-page="settings"><span class="ico">⚙️</span>Settings</button>
+    <div class="spacer"></div>
+    <button class="nav-btn" id="themeBtn"><span class="ico">🌗</span>Theme</button>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="main"></main>
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="mobilenav">
+  <button data-page="dashboard" class="active"><span class="ico">📊</span>Home</button>
+  <button data-page="apps"><span class="ico">📱</span>Apps</button>
+  <button data-page="analytics"><span class="ico">📈</span>Stats</button>
+  <button data-page="notify"><span class="ico">📣</span>Notify</button>
+  <button data-page="integrations"><span class="ico">🔌</span>Connect</button>
+  <button data-page="settings"><span class="ico">⚙️</span>More</button>
+</nav>
+
+<!-- MODALS -->
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div id="toasts"></div>
+
+<script>
+"use strict";
+/* ================= ezz v3 — app manager =================
+   Local-first. Supabase powers: live stats, anime notifications,
+   real remote updates (icon / splash / version) & remote config.
+========================================================= */
+
+const LS_KEY = "ezz_data_v2";
+const PLATFORMS = {gas:"Google Script", supabase:"Supabase", web:"Web App", other:"Other"};
+const SPLASH_COLORS = ["#6c5ce7","#00cec9","#ff6b81","#ffd166","#00e08a","#4834d4","#e84393","#2d3436","#0984e3","#e17055"];
+const NOTIF_TYPES = {info:{e:"💠",l:"Info",c:"#8f7bff"},update:{e:"🌟",l:"Update available",c:"#00e5d0"},
+  warn:{e:"⚡",l:"Warning",c:"#ffb020"},promo:{e:"🎀",l:"Announcement",c:"#ff7ab8"}};
+const DEFAULT_ICON = c => "data:image/svg+xml," + encodeURIComponent(
+ `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='16' fill='${c||"#6c5ce7"}'/><path d='M36 12 L20 36 h10 L26 52 L44 28 h-10 Z' fill='white' opacity='.9'/></svg>`);
+
+let db = load();
+let page = "dashboard";
+let searchQ = "";
+
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem(LS_KEY)); if(d && d.apps){ d.notifications=d.notifications||[]; return d; } }catch(e){}
+  return seed();
+}
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(db)); }
+function uid(){ return Math.random().toString(36).slice(2,10); }
+function days(n){ const a=[]; for(let i=n-1;i>=0;i--){const d=new Date(); d.setDate(d.getDate()-i); a.push(d.toISOString().slice(0,10));} return a; }
+function fmt(n){ return n>=1e6?(n/1e6).toFixed(1)+"M" : n>=1e3?(n/1e3).toFixed(1)+"k" : ""+n; }
+function esc(s){ return String(s??"").replace(/[&<>"']/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+
+function seed(){
+  const mk = (name,platform,ver,base,color)=>{
+    const dd = days(14);
+    return { id:uid(), name, platform, version:ver, status:"live",
+      icon:DEFAULT_ICON(color), splashColor:color, splashImg:"", desc:"", link:"", history:[],
+      config:{ maintenance:false, message:"Welcome!" },
+      created:Date.now()-86400000*30,
+      stats:{
+        installs: base*10 + Math.floor(Math.random()*500),
+        users: base*6 + Math.floor(Math.random()*300),
+        launches: dd.map((d,i)=>({d, v: Math.floor(base/3 + Math.random()*base + i*base/20)})),
+        newInstalls: dd.map((d,i)=>({d, v: Math.floor(base/10 + Math.random()*base/5)})),
+        crashes: Math.floor(Math.random()*8)
+      }};
+  };
+  const d = {
+    profile:{name:"Boss", theme:"dark"},
+    integrations:{ supabaseUrl:"", supabaseKey:"" },
+    activity:[], notifications:[],
+    apps:[
+      mk("Attendance Tracker","gas","2.1.0",120,"#0984e3"),
+      mk("Notes Cloud","supabase","1.4.2",300,"#3ecf8e"),
+      mk("Quiz Master","web","3.0.1",80,"#e84393"),
+    ]
+  };
+  d.activity.push({t:Date.now()-3600e3*2, msg:"Welcome to ezz! 3 demo apps added — delete them anytime."});
+  localStorage.setItem(LS_KEY, JSON.stringify(d));
+  return d;
+}
+
+/* ---------------- helpers ---------------- */
+function toast(msg, err){
+  const t=document.createElement("div"); t.className="toast"+(err?" err":""); t.textContent=msg;
+  document.getElementById("toasts").appendChild(t);
+  setTimeout(()=>{t.style.opacity="0"; t.style.transition="opacity .4s"; setTimeout(()=>t.remove(),400)},3600);
+}
+function logAct(msg){ db.activity.unshift({t:Date.now(), msg}); db.activity=db.activity.slice(0,30); save(); }
+function ago(t){ const s=(Date.now()-t)/1000;
+  if(s<60)return"just now"; if(s<3600)return Math.floor(s/60)+"m ago";
+  if(s<86400)return Math.floor(s/3600)+"h ago"; return Math.floor(s/86400)+"d ago"; }
+function sbBase(){ return (db.integrations.supabaseUrl||"").trim().replace(/\/$/,""); }
+function sbReady(){ return !!(sbBase() && db.integrations.supabaseKey); }
+function sbHeaders(extra){ return Object.assign({apikey:db.integrations.supabaseKey,
+  Authorization:"Bearer "+db.integrations.supabaseKey}, extra||{}); }
+
+/* ---------------- the ezz SDK (single source of truth) ---------------- */
+function sdkSnippet(app){
+  const name = typeof app==="string" ? app : app.name;
+  const appId = typeof app==="string" ? "APP-ID" : app.id;
+  const U = db.integrations.supabaseUrl||"https://xxxx.supabase.co";
+  const K = db.integrations.supabaseKey||"YOUR_ANON_KEY";
+  return '<script>\n' +
+'/* app services SDK */\n' +
+'(function(){\n' +
+'  var EZZ = {\n' +
+'    app: "' + name + '",\n' +
+'    id: "' + appId + '",\n' +
+'    url: "' + U + '",\n' +
+'    key: "' + K + '",\n' +
+'    uid: localStorage.ezz_uid || (localStorage.ezz_uid = Math.random().toString(36).slice(2)),\n' +
+'    _dev: { ua: navigator.userAgent, pf: navigator.platform || "",\n' +
+'      sw: (screen && screen.width) || 0, sh: (screen && screen.height) || 0,\n' +
+'      lang: navigator.language || "", tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || "") },\n' +
+'    _q: function(path, opts){\n' +
+'      return fetch(this.url.replace(/\\/$/, "") + "/rest/v1/" + path,\n' +
+'        Object.assign({ headers: { apikey: this.key, Authorization: "Bearer " + this.key,\n' +
+'          "Content-Type": "application/json" } }, opts || {}));\n' +
+'    },\n' +
+'    track: function(event, meta){\n' +
+'      return this._q("ezz_stats", { method: "POST",\n' +
+'        headers: { apikey: this.key, Authorization: "Bearer " + this.key,\n' +
+'          "Content-Type": "application/json", Prefer: "return=minimal" },\n' +
+'        body: JSON.stringify({ app_name: this.app, event: event,\n' +
+'          meta: Object.assign({ user: this.uid, app_id: this.id, device: this._dev }, meta || {}) }) })\n' +
+'        .then(function(r){ console.log(r.ok ? "[app] tracked: " + event : "[app] track FAILED HTTP " + r.status); })\n' +
+'        .catch(function(e){ console.warn("[app] track error:", e.message); });\n' +
+'    },\n' +
+'    getConfig: function(cb){\n' +
+'      this._q("ezz_config?select=config&limit=1&or=(app_name.eq." + encodeURIComponent(this.id) +\n' +
+'              ",app_name.eq." + encodeURIComponent(this.app) + ")")\n' +
+'        .then(function(r){ if(!r.ok) console.warn("[app] getConfig HTTP " + r.status); return r.json(); })\n' +
+'        .then(function(rows){ console.log("[app] config:", rows[0] ? "found" : "none for id"); cb((rows[0] && rows[0].config) || {}); })\n' +
+'        .catch(function(e){ console.warn("[app] getConfig error:", e.message); cb({}); });\n' +
+'    },\n' +
+'    applyUpdate: function(){\n' +
+'      var self = this;\n' +
+'      if (!document.body) return;\n' +
+'      this.getConfig(function(cfg){\n' +
+'        var m = cfg.__meta || {};\n' +
+'        if (m.icon) self._icon = m.icon;\n' +
+'        if (m.icon){\n' +
+'          var l = document.querySelector("link[rel~=\'icon\']") || document.createElement("link");\n' +
+'          l.rel = "icon"; l.href = m.icon; document.head.appendChild(l);\n' +
+'        }\n' +
+'        if (m.version && localStorage.ezz_ver !== m.version){\n' +
+'          var first = !localStorage.ezz_ver; localStorage.ezz_ver = m.version;\n' +
+'          if (!first) self.banner({ type: "update", title: "Updated to v" + m.version + " 🌟",\n' +
+'            msg: "Enjoy the newest version of " + (m.name || self.app) + "!" });\n' +
+'        }\n' +
+'        if (cfg.maintenance && !document.getElementById("ezz-maint")){\n' +
+'          var o = document.createElement("div"); o.id = "ezz-maint";\n' +
+'          o.style.cssText = "position:fixed;inset:0;z-index:100000;display:flex;flex-direction:column;" +\n' +
+'            "align-items:center;justify-content:center;background:#0f1220;color:#fff;font:16px sans-serif;" +\n' +
+'            "text-align:center;padding:20px";\n' +
+'          o.innerHTML = "<div style=\'font-size:52px\'>🚧</div><b style=\'margin-top:10px\'>Under maintenance</b>" +\n' +
+'            "<div style=\'opacity:.7;margin-top:6px\'>" + (cfg.message || "We will be back soon!") + "</div>";\n' +
+'          document.body.appendChild(o);\n' +
+'        }\n' +
+'        if (!cfg.maintenance){ var old = document.getElementById("ezz-maint"); if (old) old.remove(); }\n' +
+'      });\n' +
+'    },\n' +
+'    getStats: function(cb){\n' +
+'      var self = this;\n' +
+'      this._q("ezz_stats?select=event,meta&limit=5000&or=(app_name.eq." + encodeURIComponent(this.app) +\n' +
+'              ",app_name.eq." + encodeURIComponent(this.id) + ")")\n' +
+'        .then(function(r){ return r.json(); })\n' +
+'        .then(function(rows){\n' +
+'          var s = { installs: 0, launches: 0, crashes: 0, users: {} };\n' +
+'          rows.forEach(function(x){\n' +
+'            if (x.event === "install") s.installs++;\n' +
+'            if (x.event === "launch") s.launches++;\n' +
+'            if (x.event === "crash") s.crashes++;\n' +
+'            var u = x.meta && x.meta.user; if (u) s.users[u] = 1;\n' +
+'          });\n' +
+'          s.users = Object.keys(s.users).length;\n' +
+'          cb(s);\n' +
+'        }).catch(function(){ cb(null); });\n' +
+'    },\n' +
+'    showStats: function(){\n' +
+'      var self = this;\n' +
+'      this.getStats(function(s){\n' +
+'        if (!s){ alert("Could not load stats"); return; }\n' +
+'        var old = document.getElementById("app-stats"); if (old){ old.remove(); return; }\n' +
+'        var dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;\n' +
+'        var d = document.createElement("div"); d.id = "app-stats";\n' +
+'        d.style.cssText = "position:fixed;inset:0;z-index:99997;display:flex;align-items:center;" +\n' +
+'          "justify-content:center;background:rgba(0,0,0,.45);backdrop-filter:blur(3px)";\n' +
+'        var rows = [["Installs", s.installs], ["Launches", s.launches],\n' +
+'          ["Users", s.users], ["Crashes", s.crashes]];\n' +
+'        var cards = rows.map(function(r){\n' +
+'          return "<div style=\'flex:1;min-width:110px;padding:16px;border-radius:14px;text-align:center;" +\n' +
+'            (dark ? "background:#26272c" : "background:#f4f5f8") + "\'>" +\n' +
+'            "<div style=\'font-size:26px;font-weight:800\'>" + r[1] + "</div>" +\n' +
+'            "<div style=\'font-size:12px;opacity:.6;margin-top:4px\'>" + r[0] + "</div></div>";\n' +
+'        }).join("");\n' +
+'        d.innerHTML = "<div style=\'" + (dark ? "background:#1b1c20;color:#f2f2f7" : "background:#fff;color:#111") +\n' +
+'          ";border-radius:20px;padding:22px;max-width:420px;width:92%;font:14px sans-serif;" +\n' +
+'          "box-shadow:0 20px 60px rgba(0,0,0,.35)\'>" +\n' +
+'          "<div style=\'display:flex;justify-content:space-between;align-items:center;margin-bottom:16px\'>" +\n' +
+'          "<b style=\'font-size:16px\'>" + self.app + " — Analytics</b>" +\n' +
+'          "<span id=\'app-stats-x\' style=\'cursor:pointer;font-size:20px;opacity:.5\'>&times;</span></div>" +\n' +
+'          "<div style=\'display:flex;gap:10px;flex-wrap:wrap\'>" + cards + "</div></div>";\n' +
+'        d.onclick = function(e){ if (e.target === d) d.remove(); };\n' +
+'        document.body.appendChild(d);\n' +
+'        document.getElementById("app-stats-x").onclick = function(){ d.remove(); };\n' +
+'      });\n' +
+'    },\n' +
+'    onNotify: function(){\n' +
+'      var self = this;\n' +
+'      this._q("ezz_stats?event=eq.notify&order=created_at.desc&limit=5" +\n' +
+'              "&or=(app_name.eq.*,app_name.eq." + encodeURIComponent(this.app) + ")")\n' +
+'        .then(function(r){ return r.json(); })\n' +
+'        .then(function(rows){\n' +
+'          var n = rows && rows[0]; if (!n) return;\n' +
+'          if (localStorage.ezz_seen === n.created_at) return;\n' +
+'          localStorage.ezz_seen = n.created_at;\n' +
+'          self.banner(n.meta || {});\n' +
+'        }).catch(function(){});\n' +
+'    },\n' +
+'    banner: function(m){\n' +
+'      if (!document.body) return;\n' +
+'      var self = this;\n' +
+'      if (window.Notification && Notification.permission === "granted"){\n' +
+'        try{\n' +
+'          var os = new Notification(m.title || this.app, { body: m.msg || "",\n' +
+'            icon: (m.icon || self._icon || undefined), tag: "app-notif" });\n' +
+'          os.onclick = function(){ if (m.link) window.open(m.link); os.close(); };\n' +
+'          return;\n' +
+'        }catch(err){}\n' +
+'      }\n' +
+'      if (!document.getElementById("ezz-anim")){\n' +
+'        var st = document.createElement("style"); st.id = "ezz-anim";\n' +
+'        st.textContent = "@keyframes ezzIn{from{transform:translateY(-16px);opacity:0}" +\n' +
+'          "to{transform:translateY(0);opacity:1}}" +\n' +
+'          "@keyframes ezzOut{to{transform:translateY(-16px);opacity:0}}";\n' +
+'        document.head.appendChild(st);\n' +
+'      }\n' +
+'      var dark = window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches;\n' +
+'      var d = document.createElement("div");\n' +
+'      d.style.cssText = "position:fixed;top:12px;right:12px;left:auto;z-index:99999;" +\n' +
+'        "display:flex;gap:12px;align-items:flex-start;width:min(360px,calc(100vw - 24px));" +\n' +
+'        (dark ? "background:rgba(32,33,38,.92);color:#f2f2f7;" : "background:rgba(255,255,255,.92);color:#111;") +\n' +
+'        "backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);" +\n' +
+'        "padding:12px 14px;border-radius:16px;font:13.5px -apple-system,\'Segoe UI\',Roboto,sans-serif;" +\n' +
+'        "box-shadow:0 6px 24px rgba(0,0,0,.22),0 0 0 .5px rgba(0,0,0,.06);cursor:pointer;" +\n' +
+'        "animation:ezzIn .28s ease-out both";\n' +
+'      var ic = m.icon || self._icon;\n' +
+'      d.innerHTML =\n' +
+'        (ic ? "<img src=\'" + ic + "\' style=\'width:38px;height:38px;border-radius:9px;flex-shrink:0\'>"\n' +
+'            : "<div style=\'width:38px;height:38px;border-radius:9px;flex-shrink:0;" +\n' +
+'              "background:linear-gradient(135deg,#6c5ce7,#00cec9);display:flex;align-items:center;" +\n' +
+'              "justify-content:center;color:#fff;font-weight:700;font-size:17px\'>" +\n' +
+'              (self.app.charAt(0) || "e").toUpperCase() + "</div>") +\n' +
+'        "<div style=\'min-width:0;flex:1\'>" +\n' +
+'        "<div style=\'display:flex;justify-content:space-between;gap:8px;align-items:baseline\'>" +\n' +
+'        "<b style=\'font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\'>" +\n' +
+'        (m.title || this.app) + "</b><span style=\'font-size:11px;opacity:.5;flex-shrink:0\'>now</span></div>" +\n' +
+'        "<div style=\'font-size:13px;opacity:.75;margin-top:2px;line-height:1.35;" +\n' +
+'        "display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden\'>" +\n' +
+'        (m.msg || "") + "</div></div>";\n' +
+'      d.onclick = function(){ if (m.link) location.href = m.link; d.remove(); };\n' +
+'      document.body.appendChild(d);\n' +
+'      setTimeout(function(){ d.style.animation = "ezzOut .25s ease-in both";\n' +
+'        setTimeout(function(){ d.remove(); }, 260); }, 6000);\n' +
+'    },\n' +
+'    init: function(){\n' +
+'      console.log("[" + this.app + "] services booting, id:", this.id);\n' +
+'      if (!localStorage.ezz_installed){ localStorage.ezz_installed = 1; this.track("install"); }\n' +
+'      this.track("launch");\n' +
+'      if (window.Notification && Notification.permission === "default"){\n' +
+'        var ask = function(){ Notification.requestPermission(); document.removeEventListener("click", ask); };\n' +
+'        document.addEventListener("click", ask);\n' +
+'      }\n' +
+'      var self = this;\n' +
+'      this.applyUpdate();\n' +
+'      this.onNotify();\n' +
+'      setInterval(function(){ self.onNotify(); }, 60000);\n' +
+'      setInterval(function(){ self.applyUpdate(); }, 60000);\n' +
+'      return this;\n' +
+'    }\n' +
+'  };\n' +
+'  if (document.body) { window.EZZ = EZZ.init(); }\n' +
+'  else { window.EZZ = EZZ; document.addEventListener("DOMContentLoaded", function(){ EZZ.init(); }); }\n' +
+'})();\n' +
+'<\/script>';
+}
+
+/* ---------------- charts ---------------- */
+function drawBars(canvas, series, color){
+  const dpr = window.devicePixelRatio||1;
+  const w = canvas.clientWidth, h = canvas.clientHeight||200;
+  canvas.width=w*dpr; canvas.height=h*dpr;
+  const ctx=canvas.getContext("2d"); ctx.scale(dpr,dpr); ctx.clearRect(0,0,w,h);
+  if(!series.length) return;
+  const max=Math.max(...series.map(p=>p.v),1), pad=24;
+  const bw=Math.max(6,(w-pad*2)/series.length*0.55), gap=(w-pad*2)/series.length;
+  const grad=ctx.createLinearGradient(0,0,0,h); grad.addColorStop(0,color||"#6c5ce7"); grad.addColorStop(1,"#00cec9");
+  ctx.font="10px sans-serif";
+  series.forEach((p,i)=>{
+    const bh=(p.v/max)*(h-pad*2), x=pad+i*gap+(gap-bw)/2, y=h-pad-bh;
+    ctx.fillStyle=grad; roundRect(ctx,x,y,bw,bh,4); ctx.fill();
+    if(series.length<=14 && i%2===0){ ctx.fillStyle="rgba(140,145,185,.9)"; ctx.fillText(p.d.slice(8),x,h-8); }
+  });
+}
+function roundRect(ctx,x,y,w,h,r){ r=Math.min(r,h/2,w/2);
+  ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,0);
+  ctx.lineTo(x,y+h); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+/* ---------------- navigation ---------------- */
+function go(p){
+  page=p;
+  document.querySelectorAll("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===p));
+  render();
+  window.scrollTo(0,0);
+}
+document.querySelectorAll("[data-page]").forEach(b=>b.addEventListener("click",()=>go(b.dataset.page)));
+
+/* ---------------- render pages ---------------- */
+function render(){
+  const m=document.getElementById("main");
+  if(page==="dashboard") m.innerHTML=pageDashboard();
+  else if(page==="apps") m.innerHTML=pageApps();
+  else if(page==="analytics") m.innerHTML=pageAnalytics();
+  else if(page==="notify") m.innerHTML=pageNotify();
+  else if(page==="integrations") m.innerHTML=pageIntegrations();
+  else if(page==="settings") m.innerHTML=pageSettings();
+  bindPage();
+}
+
+function totals(){
+  return db.apps.reduce((a,x)=>{
+    a.installs+=x.stats.installs; a.users+=x.stats.users;
+    a.launches+=x.stats.launches.reduce((s,p)=>s+p.v,0);
+    return a;
+  },{installs:0,users:0,launches:0});
+}
+
+function pageDashboard(){
+  const t=totals();
+  const today = db.apps.reduce((s,a)=>s+(a.stats.launches.at(-1)?.v||0),0);
+  return `
+  <div class="topbar"><h2>👋 Hey ${esc(db.profile.name)}</h2>
+    ${sbReady()?`<button class="btn ghost" data-act="syncAll">🔄 Sync</button>`:""}
+    <button class="btn" data-act="addApp">＋ Add App</button></div>
+  ${sbReady()?"":`<div class="panel" style="border-left:4px solid var(--yellow)">⚠️ Not connected — open <b>Connect</b> and add your Supabase URL + key. Stats, notifications and app updates all flow through it.</div>`}
+  <div class="stats-grid">
+    <div class="stat"><div class="label">Total Apps</div><div class="val">${db.apps.length}</div><div class="delta">${db.apps.filter(a=>a.status==="live").length} live</div></div>
+    <div class="stat"><div class="label">Installs</div><div class="val">${fmt(t.installs)}</div><div class="delta">▲ all time</div></div>
+    <div class="stat"><div class="label">Launches</div><div class="val">${fmt(t.launches)}</div><div class="delta">▲ ${fmt(today)} today</div></div>
+    <div class="stat"><div class="label">Active Users</div><div class="val">${fmt(t.users)}</div><div class="delta">▲ across all apps</div></div>
+  </div>
+  <div class="row2">
+    <div class="panel"><h3>📊 Launches — last 14 days (all apps)</h3><canvas class="chart" id="dashChart"></canvas></div>
+    <div class="panel"><h3>🕐 Recent Activity</h3>
+      <ul class="activity">${db.activity.length? db.activity.slice(0,8).map(a=>`<li><span class="dot"></span><div>${esc(a.msg)}<time>${ago(a.t)}</time></div></li>`).join(""):"<li>No activity yet</li>"}</ul>
+    </div>
+  </div>
+  <div class="panel"><h3>📱 Your Apps</h3><div class="apps-grid">${db.apps.slice(0,3).map(appCard).join("")||emptyApps()}</div></div>`;
+}
+
+function appCard(a){
+  const l7 = a.stats.launches.slice(-7).reduce((s,p)=>s+p.v,0);
+  return `<div class="app-card" data-open="${a.id}">
+    <div class="top"><img class="app-icon" src="${a.icon}" alt="">
+      <div><div class="name">${esc(a.name)}</div>
+      <span class="badge ${a.platform}">${PLATFORMS[a.platform]||a.platform}</span>
+      <span class="badge ${a.status==="live"?"live":"paused"}">${a.status}</span></div></div>
+    <div style="color:var(--muted);font-size:12px;margin-bottom:10px">v${esc(a.version)}${a.config.maintenance?" · 🚧 maintenance":""}
+      ${a.lastPush?` <span class="pushchip ${a.lastPush.ok?"ok":"warn"}">${a.lastPush.ok?"● live v"+esc(a.lastPush.v):"● local only"}</span>`:""}</div>
+    <div class="mini-stats">
+      <div class="ms"><b>${fmt(a.stats.installs)}</b><span>installs</span></div>
+      <div class="ms"><b>${fmt(l7)}</b><span>launches 7d</span></div>
+      <div class="ms"><b>${fmt(a.stats.users)}</b><span>users</span></div>
+    </div></div>`;
+}
+function emptyApps(){ return `<div class="empty" style="grid-column:1/-1"><span class="big-emoji">🗂️</span>No apps yet.<br>Click <b>＋ Add App</b> to get started.</div>`; }
+
+function pageApps(){
+  const q=searchQ.toLowerCase();
+  const list=db.apps.filter(a=>!q||a.name.toLowerCase().includes(q));
+  return `
+  <div class="topbar"><h2>📱 My Apps</h2>
+    <input class="search" id="searchBox" placeholder="🔍 Search apps…" value="${esc(searchQ)}">
+    <button class="btn" data-act="addApp">＋ Add App</button></div>
+  <div class="apps-grid">${list.map(appCard).join("")||emptyApps()}</div>`;
+}
+
+function pageAnalytics(){
+  if(!db.apps.length) return `<div class="topbar"><h2>📈 Analytics</h2></div><div class="panel">${emptyApps()}</div>`;
+  const sel = db.apps.find(a=>a.id===window._anaSel) || db.apps[0];
+  window._anaSel = sel.id;
+  const l7=sel.stats.launches.slice(-7).reduce((s,p)=>s+p.v,0);
+  const l14=sel.stats.launches.reduce((s,p)=>s+p.v,0);
+  return `
+  <div class="topbar"><h2>📈 Analytics</h2>
+    <select class="search" id="anaSel" style="width:auto">${db.apps.map(a=>`<option value="${a.id}" ${a.id===sel.id?"selected":""}>${esc(a.name)}</option>`).join("")}</select></div>
+  <div class="stats-grid">
+    <div class="stat"><div class="label">Installs</div><div class="val">${fmt(sel.stats.installs)}</div></div>
+    <div class="stat"><div class="label">Launches (14d)</div><div class="val">${fmt(l14)}</div><div class="delta">${fmt(l7)} last 7d</div></div>
+    <div class="stat" data-act="showUsers" data-id="${sel.id}" style="cursor:pointer" title="Click to see users & devices">
+      <div class="label">Active Users 👁️</div><div class="val">${fmt(sel.stats.users)}</div><div class="delta">tap for devices</div></div>
+    <div class="stat"><div class="label">Crashes</div><div class="val">${sel.stats.crashes}</div><div class="delta">via EZZ.track("crash")</div></div>
+  </div>
+  <div class="panel"><h3>🚀 Daily launches</h3><canvas class="chart" id="anaChart1"></canvas></div>
+  <div class="panel"><h3>⬇️ New installs per day</h3><canvas class="chart" id="anaChart2"></canvas></div>
+  <div class="panel"><h3>📄 Raw data <button class="btn small ghost" data-act="csv" data-id="${sel.id}" style="margin-left:auto">⬇️ Export CSV</button></h3>
+    <table class="tbl"><tr><th>Date</th><th>Launches</th><th>New installs</th></tr>
+    ${sel.stats.launches.map((p,i)=>`<tr><td>${p.d}</td><td>${p.v}</td><td>${sel.stats.newInstalls[i]?.v??0}</td></tr>`).join("")}
+    </table></div>`;
+}
+
+function pageNotify(){
+  const sent = db.notifications;
+  return `
+  <div class="topbar"><h2>📣 Notify</h2></div>
+  ${sbReady()?"":`<div class="panel" style="border-left:4px solid var(--yellow)">⚠️ Connect Supabase first (Connect page) — notifications reach your apps through it.</div>`}
+  <div class="row2">
+  <div class="panel"><h3>✉️ Send a notification</h3>
+    <div class="field"><label>Send to</label><select id="n_app">
+      <option value="*">🌍 All apps</option>
+      ${db.apps.map(a=>`<option value="${esc(a.name)}">${esc(a.name)}</option>`).join("")}</select></div>
+    <div class="field"><label>Type</label><select id="n_type">
+      ${Object.entries(NOTIF_TYPES).map(([k,v])=>`<option value="${k}">${v.e} ${v.l}</option>`).join("")}</select></div>
+    <div class="field"><label>Title</label><input id="n_title" placeholder="New version is here!"></div>
+    <div class="field"><label>Message</label><textarea id="n_msg" style="min-height:70px" placeholder="What should your users see?"></textarea></div>
+    <div class="field"><label>Optional link (opens when tapped)</label><input id="n_link" placeholder="https://…"></div>
+    <div class="field"><label>Live preview ✨</label><div class="notif-prev" id="n_prev"></div></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn" data-act="sendNotif">📣 Send</button>
+      <button class="btn ghost" data-act="testNotif">👁️ Preview banner</button></div>
+  </div>
+  <div class="panel"><h3>🕐 Sent history</h3>
+    ${sent.length? `<ul class="activity">${sent.slice(0,15).map(n=>`<li><span class="dot" style="background:${NOTIF_TYPES[n.type]?.c||"#8f7bff"}"></span><div style="flex:1"><b>${esc(n.title)}</b> → ${esc(n.appName)}<br><span style="color:var(--muted)">${esc(n.msg)}</span><time>${ago(n.t)} · ${NOTIF_TYPES[n.type]?.l||n.type} · ${n.delivered?"✅ delivered":"📦 local only"}</time></div><button class="btn small ghost" data-act="delNotif" data-nid="${n.id}">✕</button></li>`).join("")}</ul>`
+    : `<div class="empty"><span class="big-emoji">📭</span>Nothing sent yet</div>`}
+  </div></div>`;
+}
+
+function codeBlock(id, text){
+  return `<div class="codewrap"><button class="btn small ghost copy" data-act="copy" data-code="${id}">📋 Copy</button><pre class="code" id="${id}">${text}</pre></div>`;
+}
+
+function pageIntegrations(){
+  const i=db.integrations;
+  const sql =
+`-- Run once in Supabase → SQL editor:
+create table if not exists ezz_stats (
+  id bigint generated always as identity primary key,
+  app_name text not null,
+  event text not null,               -- install | launch | notify | crash
+  meta jsonb default '{}',
+  created_at timestamptz default now()
+);
+create table if not exists ezz_config (
+  app_name text primary key,
+  config jsonb default '{}',
+  updated_at timestamptz default now()
+);
+alter table ezz_stats  enable row level security;
+alter table ezz_config enable row level security;
+create policy "anon rw stats"  on ezz_stats  for all to anon using (true) with check (true);
+create policy "anon rw config" on ezz_config for all to anon using (true) with check (true);`;
+  return `
+  <div class="topbar"><h2>🔌 Connect</h2></div>
+  <div class="panel"><h3>🟢 Supabase — powers everything</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:14px">One free Supabase project gives ezz: live stats, notifications, remote updates and remote config. <b>Setup order: 1)</b> run the SQL once, <b>2)</b> save URL + key here, <b>3)</b> paste the SDK into your apps.</p>
+    <div class="field"><label>Project URL &nbsp;<span style="color:var(--yellow)">(from Settings → API — looks like https://xxxx.supabase.co, NOT the dashboard address)</span></label>
+      <input id="sbUrl" placeholder="https://xxxx.supabase.co" value="${esc(i.supabaseUrl)}"></div>
+    <div class="field"><label>Anon (public) key</label><input id="sbKey" placeholder="eyJhbGciOi…" value="${esc(i.supabaseKey)}"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn small" data-act="saveInteg">💾 Save</button>
+      <button class="btn small ghost" data-act="testSb">🔄 Test &amp; Sync</button>
+      <button class="btn small ghost" data-act="doctor">🩺 Connection Doctor</button>
+      <button class="btn small ghost" data-act="toggle" data-box="sqlBox">📜 SQL setup</button></div>
+    <div id="sqlBox" style="display:none;margin-top:12px">${codeBlock("sqlCode",esc(sql))}</div>
+  </div>
+  <div class="panel"><h3>📦 ezz SDK — paste into each app</h3>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:8px">Tip: open any app in <b>My Apps</b> and hit <b>📦 Copy SDK</b> — snippet arrives pre-filled. It auto-tracks installs/launches, shows notifications, applies published updates, reads remote config — and gives your app a built-in analytics popup: call <code>EZZ.showStats()</code> (e.g. from a button) to show installs / launches / users / crashes right inside your app. No visible branding is added to your app.</p>
+    ${codeBlock("sdkCode",esc(sdkSnippet("MY-APP-NAME")))}
+  </div>`;
+}
+
+function pageSettings(){
+  return `
+  <div class="topbar"><h2>⚙️ Settings</h2></div>
+  <div class="panel"><h3>👤 Profile</h3>
+    <div class="field"><label>Your name</label><input id="profName" value="${esc(db.profile.name)}"></div>
+    <button class="btn small" data-act="saveProf">💾 Save</button></div>
+  <div class="panel"><h3>💾 Data</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn small ghost" data-act="export">⬇️ Export backup (JSON)</button>
+      <button class="btn small ghost" data-act="import">⬆️ Import backup</button>
+      <button class="btn small danger" data-act="reset">🗑️ Reset everything</button></div>
+    <input type="file" id="importFile" accept=".json" style="display:none"></div>
+  <div class="panel"><h3>ℹ️ About</h3>
+    <div class="kv"><span>App</span><span><b>ezz</b> — manage apps, ezz-ily ⚡</span></div>
+    <div class="kv"><span>Version</span><span>3.0.0 · anime notifications ✨ · real updates 🚀</span></div>
+    <div class="kv"><span>Tip</span><span>“Add to Home screen” on phone for an app icon 📲</span></div></div>`;
+}
+
+/* ---------------- modals ---------------- */
+const modalBg=document.getElementById("modalBg"), modalBox=document.getElementById("modalBox");
+function openModal(html){ modalBox.innerHTML=html; modalBg.classList.add("open"); }
+function closeModal(){ modalBg.classList.remove("open"); }
+modalBg.addEventListener("click",e=>{ if(e.target===modalBg) closeModal(); });
+
+function addAppModal(){
+  openModal(`
+  <h3>＋ Add App</h3>
+  <div class="field"><label>App name</label><input id="f_name" placeholder="My Awesome App"></div>
+  <div class="field"><label>Platform</label><select id="f_platform">
+    ${Object.entries(PLATFORMS).map(([k,v])=>`<option value="${k}">${v}</option>`).join("")}</select></div>
+  <div class="field"><label>Version</label><input id="f_ver" value="1.0.0"></div>
+  <div class="field"><label>Open link (optional)</label><input id="f_link" placeholder="https://your-app-url"></div>
+  <div class="actions"><button class="btn ghost" data-act="close">Cancel</button>
+  <button class="btn" data-act="createApp">Create</button></div>`);
+}
+
+function appModal(id, tab){
+  const a=db.apps.find(x=>x.id===id); if(!a) return;
+  a.history=a.history||[];
+  tab=tab||"overview";
+  const tabs=["overview","update","data","danger"];
+  const labels={overview:"Overview",update:"🎨 Update",data:"🗄️ Data",danger:"⚠️"};
+  let body="";
+  if(tab==="overview"){
+    const l7=a.stats.launches.slice(-7).reduce((s,p)=>s+p.v,0);
+    body=`
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:16px">
+      <img class="app-icon big" src="${a.icon}">
+      <div><b style="font-size:18px">${esc(a.name)}</b><br>
+      <span class="badge ${a.platform}">${PLATFORMS[a.platform]||a.platform}</span>
+      <span class="badge ${a.status==="live"?"live":"paused"}">${a.status}</span>
+      ${a.config.maintenance?`<span class="badge paused">🚧 maintenance</span>`:""}</div></div>
+    <div class="kv"><span>Version</span><span>v${esc(a.version)}</span></div>
+    <div class="kv"><span>Installs</span><span>${fmt(a.stats.installs)}</span></div>
+    <div class="kv"><span>Launches (7d)</span><span>${fmt(l7)}</span></div>
+    <div class="kv"><span>Active users</span><span>${fmt(a.stats.users)}</span></div>
+    <div class="actions">
+      ${a.link?`<button class="btn ghost" data-act="openLink" data-id="${a.id}">🔗 Open</button>`:""}
+      <button class="btn ghost" data-act="copySdk" data-id="${a.id}">📦 Copy SDK</button>
+      <button class="btn ghost" data-act="toggleMaint" data-id="${a.id}">${a.config.maintenance?"✅ End maintenance":"🚧 Maintenance"}</button>
+      <button class="btn ghost" data-act="toggleStatus" data-id="${a.id}">${a.status==="live"?"⏸ Pause":"▶ Go Live"}</button>
+      <button class="btn" data-act="tab" data-id="${a.id}" data-tab="update">🎨 Update</button></div>`;
+  }
+  else if(tab==="update"){
+    body=`
+    <div class="field"><label>App name</label><input id="u_name" value="${esc(a.name)}"></div>
+    <div class="field"><label>Version (bump to publish)</label><input id="u_ver" value="${esc(a.version)}"></div>
+    <div class="field"><label>Open link</label><input id="u_link" value="${esc(a.link||"")}" placeholder="https://your-app-url"></div>
+    <div class="field"><label>App icon</label>
+      <div class="icon-pick"><img class="app-icon" id="u_iconPrev" src="${a.icon}">
+        <button class="btn small ghost" data-act="pickIcon">📁 Choose image…</button>
+        <input type="file" id="u_iconFile" accept="image/*" style="display:none"></div>
+      <p style="color:var(--muted);font-size:12px;margin-top:8px">Publishing updates your app's browser-tab icon and bumps the version (users get an update notice if announce is ticked).</p></div>
+    ${a.history.length?`<div class="field"><label>Version history</label>${a.history.slice(0,5).map(h=>`<div class="kv"><span>v${esc(h.v)}</span><span>${ago(h.t)}</span></div>`).join("")}</div>`:""}
+    <div class="field"><label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" id="u_announce" checked style="width:auto"> 📣 Announce this update to users (instant anime banner)</label></div>
+    <div id="pubProg" style="display:none"><p style="font-size:13px" id="pubTxt">Publishing…</p><div class="progress"><i id="pubBar"></i></div></div>
+    <div class="actions"><button class="btn ghost" data-act="tab" data-id="${a.id}" data-tab="overview">Back</button>
+      <button class="btn" data-act="publish" data-id="${a.id}">🚀 Publish Update</button></div>`;
+  }
+  else if(tab==="data"){
+    body=`
+    <p style="color:var(--muted);font-size:13px;margin-bottom:10px">Remote config — your app reads this at runtime with <code>EZZ.getConfig()</code>. Saving pushes it live instantly, no redeploy. (<code>maintenance: true</code> shows a full-screen 🚧 overlay in your app.)</p>
+    <div class="field"><label>Config JSON</label><textarea id="u_config">${esc(JSON.stringify(a.config,null,2))}</textarea></div>
+    <div class="actions"><button class="btn ghost" data-act="tab" data-id="${a.id}" data-tab="overview">Back</button>
+      <button class="btn" data-act="saveConfig" data-id="${a.id}">💾 Save &amp; Push</button></div>`;
+  }
+  else if(tab==="danger"){
+    body=`
+    <p style="font-size:14px;margin-bottom:16px">Delete <b>${esc(a.name)}</b>? This removes it from ezz (your real app is not touched).</p>
+    <div class="actions"><button class="btn ghost" data-act="tab" data-id="${a.id}" data-tab="overview">Cancel</button>
+      <button class="btn danger" data-act="deleteApp" data-id="${a.id}">🗑️ Delete</button></div>`;
+  }
+  openModal(`
+    <h3>${esc(a.name)}</h3>
+    <div class="tabs">${tabs.map(t=>`<button class="tab ${t===tab?"active":""}" data-act="tab" data-id="${a.id}" data-tab="${t}">${labels[t]}</button>`).join("")}</div>
+    ${body}`);
+  if(tab==="update") bindUpdateTab(a);
+}
+
+let pendingIcon=null;
+function bindUpdateTab(a){
+  pendingIcon=null;
+  const iconFile=document.getElementById("u_iconFile");
+  iconFile.addEventListener("change",()=>fileToData(iconFile.files[0],d=>{
+    pendingIcon=d; document.getElementById("u_iconPrev").src=d;
+  }));
+}
+function fileToData(f,cb){ if(!f)return; if(f.size>300*1024){toast("Image too big — keep under 300 KB so updates push fast",1);return;}
+  const r=new FileReader(); r.onload=()=>cb(r.result); r.readAsDataURL(f); }
+
+/* ---------------- actions ---------------- */
+document.addEventListener("click",e=>{
+  const openId=e.target.closest("[data-open]")?.dataset.open;
+  if(openId){ appModal(openId); return; }
+  const btn=e.target.closest("[data-act]"); if(!btn) return;
+  const act=btn.dataset.act, id=btn.dataset.id;
+  const a=id?db.apps.find(x=>x.id===id):null;
+
+  if(act==="close") closeModal();
+  else if(act==="addApp") addAppModal();
+  else if(act==="createApp"){
+    const name=document.getElementById("f_name").value.trim();
+    if(!name){toast("Give your app a name",1);return;}
+    const platform=document.getElementById("f_platform").value;
+    const color=SPLASH_COLORS[db.apps.length%SPLASH_COLORS.length];
+    db.apps.push({id:uid(),name,platform,version:document.getElementById("f_ver").value.trim()||"1.0.0",
+      status:"live",icon:DEFAULT_ICON(color),splashColor:color,splashImg:"",history:[],
+      link:document.getElementById("f_link").value.trim(),desc:"",
+      config:{maintenance:false,message:"Welcome!"},created:Date.now(),
+      stats:{installs:0,users:0,launches:days(14).map(d=>({d,v:0})),newInstalls:days(14).map(d=>({d,v:0})),crashes:0}});
+    logAct(`App "${name}" added`); save(); closeModal(); toast(`"${name}" created 🎉`); render();
+  }
+  else if(act==="tab") appModal(id,btn.dataset.tab);
+  else if(act==="openLink"&&a&&a.link) window.open(a.link,"_blank");
+  else if(act==="copySdk"&&a){
+    navigator.clipboard.writeText(sdkSnippet(a))
+      .then(()=>toast(`📦 SDK for "${a.name}" copied — paste into that app`),()=>toast("Copy failed",1));
+  }
+  else if(act==="toggleMaint"&&a){
+    a.config.maintenance=!a.config.maintenance; save();
+    pushAppUpdate(a,true).then(ok=>{ toast(a.config.maintenance?
+      (ok?"🚧 Maintenance mode is LIVE in your app":"🚧 Saved — connect Supabase to make it live"):
+      (ok?"✅ Maintenance ended":"Saved locally")); });
+    appModal(id); render();
+  }
+  else if(act==="toggleStatus"&&a){ a.status=a.status==="live"?"paused":"live";
+    logAct(`${a.name} ${a.status==="live"?"is live again":"was paused"}`); save(); appModal(id); render(); }
+  else if(act==="pickIcon") document.getElementById("u_iconFile").click();
+  else if(act==="publish"&&a){
+    const name=document.getElementById("u_name").value.trim()||a.name;
+    const ver=document.getElementById("u_ver").value.trim()||a.version;
+    const link=document.getElementById("u_link").value.trim();
+    const prog=document.getElementById("pubProg"),bar=document.getElementById("pubBar"),txt=document.getElementById("pubTxt");
+    prog.style.display="block"; btn.disabled=true;
+    const oldName=a.name;
+    a.name=name; a.version=ver; a.link=link;
+    if(pendingIcon)a.icon=pendingIcon;
+    a.history=a.history||[]; a.history.unshift({v:ver,t:Date.now()}); a.history=a.history.slice(0,10);
+    save();
+    bar.style.width="40%"; txt.textContent="Packing update…";
+    const announce=document.getElementById("u_announce")?.checked;
+    pushAppUpdate(a).then(async ok=>{
+      if(ok && oldName!==name){
+        // remove stale row stored under the old name so old snippets can't read outdated data
+        try{ await fetch(sbBase()+"/rest/v1/ezz_config?app_name=eq."+encodeURIComponent(oldName),
+          {method:"DELETE",headers:sbHeaders()}); }catch(e){}
+      }
+      if(ok && announce){
+        try{ await fetch(sbBase()+"/rest/v1/ezz_stats",
+          {method:"POST",headers:sbHeaders({"Content-Type":"application/json",Prefer:"return=minimal"}),
+           body:JSON.stringify({app_name:a.name,event:"notify",
+             meta:{type:"update",title:"Update v"+ver+" is here! 🌟",msg:"Reload "+name+" to get the newest version.",link:a.link||""}})});
+        }catch(e){}
+      }
+      bar.style.width="100%"; txt.textContent=ok?"Live! Apps update on next launch ✅":"Saved locally 📦";
+      a.lastPush={v:ver,t:Date.now(),ok:!!ok}; save();
+      logAct(`Update v${ver} ${ok?"pushed live":"saved"} for ${name}`);
+      toast(ok?`🚀 v${ver} is LIVE — ${name} updates on next launch`:`📦 v${ver} saved — connect Supabase to push it live`, !ok);
+      setTimeout(()=>{closeModal();render();},900);
+    });
+  }
+  else if(act==="saveConfig"&&a){
+    let cfg;
+    try{ cfg=JSON.parse(document.getElementById("u_config").value); }
+    catch(err){ toast("Invalid JSON — check commas/quotes",1); return; }
+    a.config=cfg; logAct(`Remote config updated for ${a.name}`); save();
+    pushAppUpdate(a,true).then(ok=>toast(ok?"💾 Config pushed live ✅":"Saved locally — connect Supabase to push"));
+    appModal(id,"overview");
+  }
+  else if(act==="deleteApp"&&a){
+    db.apps=db.apps.filter(x=>x.id!==id); logAct(`App "${a.name}" deleted`);
+    save(); closeModal(); toast(`"${a.name}" deleted`); render();
+  }
+  else if(act==="csv"&&a){
+    const csv="date,launches,new_installs\n"+a.stats.launches.map((p,i)=>`${p.d},${p.v},${a.stats.newInstalls[i]?.v??0}`).join("\n");
+    const u=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
+    const l=document.createElement("a"); l.href=u; l.download=a.name.replace(/\W+/g,"_")+"_stats.csv"; l.click();
+    URL.revokeObjectURL(u); toast("CSV exported ⬇️");
+  }
+  else if(act==="showUsers"){ if(!window._users) { toast("Syncing first…"); testSupabase(true).then(()=>usersModal(id)); } else usersModal(id); }
+  else if(act==="sendNotif") sendNotification();
+  else if(act==="testNotif") showBanner(readNotifForm());
+  else if(act==="delNotif"){ db.notifications=db.notifications.filter(n=>n.id!==btn.dataset.nid); save(); render(); }
+  else if(act==="saveProf"){ db.profile.name=document.getElementById("profName").value.trim()||"Boss"; save(); toast("Saved ✅"); render(); }
+  else if(act==="saveInteg"){
+    db.integrations.supabaseUrl=(document.getElementById("sbUrl")?.value||"").trim();
+    db.integrations.supabaseKey=(document.getElementById("sbKey")?.value||"").trim();
+    save(); toast("Saved ✅ — now hit Test & Sync"); render();
+  }
+  else if(act==="toggle"){ const b=document.getElementById(btn.dataset.box); if(b) b.style.display=b.style.display==="none"?"block":"none"; }
+  else if(act==="copy"){ const el=document.getElementById(btn.dataset.code);
+    if(el) navigator.clipboard.writeText(el.textContent).then(()=>toast("Copied 📋"),()=>toast("Copy failed",1)); }
+  else if(act==="testSb"||act==="syncAll") testSupabase();
+  else if(act==="doctor") runDoctor();
+  else if(act==="export"){
+    const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"});
+    const u=URL.createObjectURL(blob); const l=document.createElement("a");
+    l.href=u; l.download="ezz-backup.json"; l.click(); URL.revokeObjectURL(u); toast("Backup downloaded ⬇️");
+  }
+  else if(act==="import"){ const f=document.getElementById("importFile"); f.onchange=()=>{
+      const r=new FileReader(); r.onload=()=>{ try{ const d=JSON.parse(r.result);
+        if(!d.apps) throw 0; db=d; db.notifications=db.notifications||[]; save(); toast("Backup restored ✅"); render(); }
+        catch(err){ toast("Invalid backup file",1);} }; r.readAsText(f.files[0]); };
+    f.click(); }
+  else if(act==="reset"){ if(confirm("Reset ezz? All local data will be wiped.")){ localStorage.removeItem(LS_KEY); db=load(); render(); toast("Fresh start ✨"); } }
+});
+
+/* ---------------- Supabase: stats sync ---------------- */
+async function testSupabase(quiet){
+  const url=(document.getElementById("sbUrl")?.value||db.integrations.supabaseUrl||"").trim().replace(/\/$/,"");
+  const key=(document.getElementById("sbKey")?.value||db.integrations.supabaseKey||"").trim();
+  if(!url||!key){ if(!quiet)toast("Enter URL and anon key first",1); return; }
+  db.integrations.supabaseUrl=url; db.integrations.supabaseKey=key; save();
+  if(!quiet) toast("Connecting to Supabase…");
+  try{
+    const r=await fetch(url+"/rest/v1/ezz_stats?select=app_name,event,meta,created_at&order=created_at.desc&limit=5000",
+      {headers:{apikey:key, Authorization:"Bearer "+key}});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const rows=await r.json();
+    const agg={}; window._users={};
+    const bump=(k,x)=>{ if(!k)return;
+      agg[k]=agg[k]||{install:0,launch:0,crash:0,users:new Set()};
+      if(x.event==="install")agg[k].install++;
+      if(x.event==="launch")agg[k].launch++;
+      if(x.event==="crash")agg[k].crash++;
+      const u=x.meta&&x.meta.user;
+      if(u){ agg[k].users.add(u);
+        const U=window._users[k]=window._users[k]||{};
+        const rec=U[u]=U[u]||{launches:0,first:x.created_at,last:x.created_at,device:null};
+        rec.launches+= x.event==="launch"?1:0;
+        if(x.created_at<rec.first)rec.first=x.created_at;
+        if(x.created_at>rec.last)rec.last=x.created_at;
+        if(x.meta.device&&!rec.device)rec.device=x.meta.device;
+      } };
+    rows.forEach(x=>{ if(x.app_name && x.app_name!=="*") bump(x.app_name,x);
+      const aid=x.meta&&x.meta.app_id; if(aid && aid!==x.app_name) bump(aid,x); });
+    let matched=0;
+    db.apps.forEach(a=>{ const s=agg[a.id]||agg[a.name]; if(s){ matched++;
+      a.stats.installs=Math.max(a.stats.installs,s.install);
+      a.stats.users=Math.max(a.stats.users,s.users.size);
+      a.stats.crashes=s.crash;
+      const today=a.stats.launches.at(-1); if(today) today.v=Math.max(today.v,s.launch);
+    }});
+    save();
+    if(!quiet){
+      const seen=Object.keys(agg).filter(k=>!db.apps.some(a=>a.id===k));
+      let msg=`✅ Synced ${rows.length} events · ${matched} app(s) matched`;
+      if(rows.length&&!matched&&seen.length) msg+=` — data exists under name(s): ${seen.slice(0,3).join(", ")} — rename your ezz app(s) to match exactly, or repaste the SDK`;
+      if(!rows.length) msg+=" — no events yet: open your app once (with the SDK pasted) then sync again";
+      toast(msg, rows.length&&!matched);
+      render();
+    }
+  }catch(err){ if(!quiet) toast("Could not connect: "+err.message+" — is the URL the API one (Settings → API)? Is the project paused?",1); }
+}
+
+/* ---------------- Supabase: push app update / config ---------------- */
+async function pushAppUpdate(a){
+  if(!sbReady()) return false;
+  const meta={name:a.name,version:a.version,icon:a.icon,updated:Date.now()};
+  try{
+    const r=await fetch(sbBase()+"/rest/v1/ezz_config?on_conflict=app_name",
+      {method:"POST",headers:sbHeaders({"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"}),
+       body:JSON.stringify([
+         {app_name:a.id,  config:Object.assign({},a.config,{__meta:meta})},
+         {app_name:a.name,config:Object.assign({},a.config,{__meta:meta})}
+       ])});
+    if(!r.ok){
+      const why = r.status===404 ? "ezz_config table missing — run 📜 SQL setup (Connect page)"
+        : (r.status===401||r.status===403) ? "blocked by Supabase — RLS policy missing, run 📜 SQL setup"
+        : "HTTP "+r.status;
+      toast("Push failed: "+why,1);
+      return false;
+    }
+    // verify it's really live: read it back
+    const v=await fetch(sbBase()+"/rest/v1/ezz_config?app_name=eq."+encodeURIComponent(a.id)+"&select=config&limit=1",
+      {headers:sbHeaders()});
+    const rows=v.ok?await v.json():[];
+    if(!(rows[0]&&rows[0].config&&rows[0].config.__meta&&rows[0].config.__meta.version===a.version)){
+      toast("Push saved but verification failed — run 🩺 Doctor",1); return false;
+    }
+    return true;
+  }catch(err){ toast("Push failed: "+err.message,1); return false; }
+}
+
+/* ---------------- Connection Doctor ---------------- */
+async function runDoctor(){
+  if(!sbReady()){ toast("Save URL & key first",1); return; }
+  const checks=[];
+  for(const t of ["ezz_stats","ezz_config"]){
+    let res;
+    try{
+      const r=await fetch(sbBase()+"/rest/v1/"+t+"?limit=1",{headers:sbHeaders()});
+      res = r.ok ? "✅ OK"
+        : r.status===404 ? "❌ table missing"
+        : (r.status===401||r.status===403) ? "❌ blocked (RLS policy missing)"
+        : "❌ HTTP "+r.status;
+    }catch(e){ res="❌ "+e.message; }
+    checks.push({t,res});
+  }
+  // write test on ezz_config (updates need this)
+  let wr;
+  try{
+    const r=await fetch(sbBase()+"/rest/v1/ezz_config?on_conflict=app_name",
+      {method:"POST",headers:sbHeaders({"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"}),
+       body:JSON.stringify({app_name:"__ezz_doctor__",config:{ok:true}})});
+    wr = r.ok ? "✅ OK" : "❌ HTTP "+r.status+" (run 📜 SQL setup)";
+  }catch(e){ wr="❌ "+e.message; }
+  const allOk = checks.every(c=>c.res.startsWith("✅")) && wr.startsWith("✅");
+  // live test per app: fetch update exactly like the SDK does
+  let appRows="";
+  for(const a of db.apps){
+    let res;
+    try{
+      const r=await fetch(sbBase()+"/rest/v1/ezz_config?app_name=eq."+encodeURIComponent(a.id)+"&select=config&limit=1",
+        {headers:sbHeaders()});
+      const rows=r.ok?await r.json():[];
+      const m=rows[0]&&rows[0].config&&rows[0].config.__meta;
+      res = m ? `✅ v${m.version} live` : "⚠️ nothing published for this ID yet";
+    }catch(e){ res="❌ "+e.message; }
+    appRows+=`<div class="kv"><span>🔬 ${esc(a.name)}</span><span>${esc(res)}</span></div>`;
+  }
+  openModal(`<h3>🩺 Connection Doctor</h3>
+    ${checks.map(c=>`<div class="kv"><span>Read ${c.t}</span><span>${esc(c.res)}</span></div>`).join("")}
+    <div class="kv"><span>Write ezz_config (updates)</span><span>${esc(wr)}</span></div>
+    ${appRows?`<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:6px"><b style="font-size:13px">What each app receives:</b>${appRows}</div>`:""}
+    <p style="color:var(--muted);font-size:13px;margin-top:14px">${allOk
+      ? "🎉 Everything works! Publish an update in any app, then reload your real app — icon &amp; splash will apply."
+      : "Fix the ❌ rows: Connect page → 📜 SQL setup → 📋 Copy → Supabase dashboard → SQL Editor → paste → Run. Then run the doctor again."}</p>
+    <div class="actions"><button class="btn" data-act="close">Done</button></div>`);
+}
+
+/* ---------------- users & devices ---------------- */
+function parseDevice(d){
+  if(!d) return {icon:"❓",name:"Unknown device",detail:"no device data (older SDK snippet — repaste 📦)"};
+  const ua=d.ua||"";
+  let os="Unknown OS", icon="💻";
+  if(/Android/i.test(ua)){ os="Android"; icon="📱";
+    const mm=ua.match(/Android[^;)]*;\s*([^;)]+)\)/); if(mm&&mm[1]&&!/wv|Mobile/i.test(mm[1].trim())) os="Android · "+mm[1].trim(); }
+  else if(/iPhone/i.test(ua)){ os="iPhone"; icon="📱"; }
+  else if(/iPad/i.test(ua)){ os="iPad"; icon="📱"; }
+  else if(/Windows/i.test(ua)) os="Windows";
+  else if(/Mac OS/i.test(ua)) os="macOS";
+  else if(/Linux/i.test(ua)) os="Linux";
+  let br="browser";
+  if(/Edg\//.test(ua)) br="Edge"; else if(/OPR\//.test(ua)) br="Opera";
+  else if(/Chrome\//.test(ua)) br="Chrome"; else if(/Firefox\//.test(ua)) br="Firefox";
+  else if(/Safari\//.test(ua)) br="Safari";
+  return {icon, name:os, detail:`${br} · ${d.sw||"?"}×${d.sh||"?"} · ${d.lang||""} · ${d.tz||""}`};
+}
+function usersModal(id){
+  const a=db.apps.find(x=>x.id===id); if(!a) return;
+  const U=Object.assign({},(window._users||{})[a.id],(window._users||{})[a.name]);
+  const list=Object.entries(U).sort((x,y)=>y[1].last<x[1].last?-1:1);
+  openModal(`<h3>👥 Users of ${esc(a.name)} (${list.length})</h3>
+    ${list.length?list.map(([u,r])=>{ const dv=parseDevice(r.device);
+      return `<div style="display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-bottom:1px dashed var(--border)">
+        <div style="font-size:24px">${dv.icon}</div>
+        <div style="flex:1;min-width:0">
+          <b style="font-size:14px">${esc(dv.name)}</b>
+          <span style="color:var(--muted);font-size:11px"> · id ${esc(u.slice(0,8))}</span>
+          <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(dv.detail)}</div>
+          <div style="color:var(--muted);font-size:11.5px;margin-top:2px">🚀 ${r.launches} launches · first seen ${ago(new Date(r.first).getTime())} · last active ${ago(new Date(r.last).getTime())}</div>
+        </div></div>`;}).join("")
+    :`<div class="empty"><span class="big-emoji">👻</span>No user data yet.<br>Users appear after your app (with the latest SDK) is opened, then press 🔄 Sync.</div>`}
+    <div class="actions"><button class="btn" data-act="close">Close</button></div>`);
+}
+
+/* ---------------- notifications ---------------- */
+function readNotifForm(){
+  return { app: document.getElementById("n_app").value,
+    type: document.getElementById("n_type").value,
+    title: document.getElementById("n_title").value.trim(),
+    msg: document.getElementById("n_msg").value.trim(),
+    link: document.getElementById("n_link").value.trim() };
+}
+function bannerHTML(m){
+  const app=db.apps.find(x=>x.name===m.app)||db.apps[0];
+  const ic=app?app.icon:null;
+  return `${ic?`<img src="${ic}" style="width:38px;height:38px;border-radius:9px;flex-shrink:0">`
+      :`<div style="width:38px;height:38px;border-radius:9px;flex-shrink:0;background:linear-gradient(135deg,#6c5ce7,#00cec9);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700">e</div>`}
+    <div style="min-width:0;flex:1">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline">
+        <b style="font-size:13.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.title||"Title")}</b>
+        <span style="font-size:11px;opacity:.5;flex-shrink:0">now</span></div>
+      <div style="font-size:13px;opacity:.75;margin-top:2px;line-height:1.35">${esc(m.msg||"Message…")}</div></div>`;
+}
+function showBanner(m){
+  const d=document.createElement("div");
+  d.style.cssText=`position:fixed;top:12px;right:12px;z-index:99999;display:flex;gap:12px;align-items:flex-start;width:min(360px,calc(100vw - 24px));background:rgba(32,33,38,.94);color:#f2f2f7;backdrop-filter:blur(14px);padding:12px 14px;border-radius:16px;font:13.5px 'Segoe UI',sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.3);cursor:pointer;animation:fadeUp .28s ease-out both`;
+  d.innerHTML=bannerHTML(m);
+  d.onclick=()=>d.remove();
+  document.body.appendChild(d); setTimeout(()=>d.remove(),6000);
+}
+async function sendNotification(){
+  const f=readNotifForm();
+  if(!f.title||!f.msg){ toast("Title and message are required",1); return; }
+  const appName = f.app==="*" ? "All apps" : f.app;
+  const notif={ id:uid(), t:Date.now(), appId:f.app, appName, type:f.type, title:f.title, msg:f.msg, link:f.link, delivered:false };
+  if(sbReady()){
+    toast("Delivering…");
+    try{
+      const r=await fetch(sbBase()+"/rest/v1/ezz_stats",
+        {method:"POST",headers:sbHeaders({"Content-Type":"application/json",Prefer:"return=minimal"}),
+         body:JSON.stringify({app_name:f.app,event:"notify",meta:{type:f.type,title:f.title,msg:f.msg,link:f.link}})});
+      if(r.ok) notif.delivered=true; else toast("Supabase said HTTP "+r.status,1);
+    }catch(err){ toast("Delivery failed: "+err.message,1); }
+  }
+  db.notifications.unshift(notif); db.notifications=db.notifications.slice(0,50);
+  logAct(`Notification "${f.title}" sent to ${appName}`); save();
+  toast(notif.delivered?"📣 Delivered — apps show it within a minute ✅":"📦 Saved locally — connect Supabase to deliver");
+  render();
+}
+
+/* ---------------- page bindings ---------------- */
+function bindPage(){
+  const s=document.getElementById("searchBox");
+  if(s){ s.addEventListener("input",()=>{ searchQ=s.value;
+    const list=db.apps.filter(a=>!searchQ||a.name.toLowerCase().includes(searchQ.toLowerCase()));
+    document.querySelector(".apps-grid").innerHTML=list.map(appCard).join("")||emptyApps();
+  }); }
+  const sel=document.getElementById("anaSel");
+  if(sel){ sel.addEventListener("change",()=>{ window._anaSel=sel.value; render(); }); }
+  const c1=document.getElementById("dashChart");
+  if(c1){ const dd=days(14).map((d,i)=>({d, v: db.apps.reduce((s,a)=>s+(a.stats.launches[i]?.v||0),0)})); drawBars(c1,dd); }
+  const a1=document.getElementById("anaChart1"), a2=document.getElementById("anaChart2");
+  if(a1){ const sel2=db.apps.find(a=>a.id===window._anaSel)||db.apps[0];
+    drawBars(a1,sel2.stats.launches,"#6c5ce7"); drawBars(a2,sel2.stats.newInstalls,"#00cec9"); }
+  // notify live preview
+  const prev=document.getElementById("n_prev");
+  if(prev){ const upd=()=>{ const f=readNotifForm();
+      prev.style.boxShadow="0 6px 24px rgba(0,0,0,.25)";
+      prev.innerHTML=bannerHTML(f); };
+    ["n_title","n_msg","n_link"].forEach(idn=>document.getElementById(idn).addEventListener("input",upd));
+    document.getElementById("n_type").addEventListener("change",upd); upd();
+  }
+}
+
+/* ---------------- theme + boot ---------------- */
+document.getElementById("themeBtn").addEventListener("click",()=>{
+  db.profile.theme = db.profile.theme==="dark"?"light":"dark";
+  document.documentElement.dataset.theme = db.profile.theme==="light"?"light":"";
+  save();
+});
+if(db.profile.theme==="light") document.documentElement.dataset.theme="light";
+
+window.addEventListener("resize",()=>bindPage());
+
+setTimeout(()=>{
+  document.getElementById("splash").classList.add("hide");
+  document.getElementById("app").classList.add("ready");
+  render();
+  if(sbReady()) testSupabase(true).then(()=>{ if(page==="dashboard") render(); });   // silent auto-sync on open
+},1600);
+</script>
+</body>
+</html>
